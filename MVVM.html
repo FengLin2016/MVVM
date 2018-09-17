@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>模拟双向数据绑定</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <input type="text" v-model="name"/>
+  <input type="text" v-model="name1"/>
+  输入的值为：{{name}}
+  <h1>{{s}}</h1>
+  <h2>{{name1}}</h2>
+  <h3>{{name}}</h3>
+</div>
+
+</body>
+<script>
+// 整个双向绑定的构造函数
+function Yue (options) {
+  this.$el = options.el;
+  this.$data = options.data;
+  resovle(this.$data)
+  var elment = document.querySelector(this.$el);
+  elment.appendChild(nodeToFragment(elment, this));
+}
+
+// 编译
+function nodeToFragment (node, vm) {
+  var flag = document.createDocumentFragment();
+  var child;
+  while (child = node.firstChild) {
+      compile(child, vm);
+      if (child.firstChild) {
+          var dom = nodeToFragment(child, vm);
+          child.appendChild(dom);
+      }
+      flag.appendChild(child);
+  }
+ return flag
+}
+
+function compile (node, vm) {
+  var type = node.nodeType;
+  if (type == 1) {
+      // node是元素节点
+      var attr = node.attributes;
+      [].slice.call(attr).forEach(function (item) {
+          // item是属性节点
+          if (item.name == 'v-model') {
+              node.addEventListener('input', function (e) {
+                  if (!vm.$data[item.nodeValue]) {
+                      new Error('未定义该变量'+item.nodeValue);
+                      return false;
+                  }
+                  vm.$data[item.nodeValue] = e.target.value;
+              })
+              new Watch(node, vm, item.nodeValue);
+              // node.value = vm.$data[item.nodeValue]
+              node.removeAttribute('v-model')
+          }
+      })
+  }else if (type == 3) {
+      var v = node.nodeValue;
+      var reg = /\{\{(\w*)\}\}/g;
+      if (reg.test(v)){
+        new Watch(node, vm, RegExp.$1);
+      }
+      // new Watch(node, vm);
+      // node.nodeValue = v.replace(, function ($0, $1) {
+      //     return vm.$data[$1];
+      // })
+  }
+}
+
+
+//订阅
+function Dep () {
+  // 订阅缓存
+  this.dep = []
+}
+Dep.prototype.addDep = function (target) {
+  this.dep.push(target)
+  Dep.target = ''
+}
+Dep.prototype.update = function (value, name) {
+  console.log(this.dep)
+  this.dep.forEach(function (item) {
+      // if (item.node.nodeType === 3) {
+      //   var reg = new RegExp('\{?\{?('+vm.$data[name]+')\}?\}?', 'g');
+      //   item.node.nodeValue = item.node.nodeValue.replace(reg, function ($0, $1) {
+      //       return value;
+      //   })
+      // } else {
+      //   item.value = value
+      // }
+      item.value = value;
+      item.update()
+  })
+}
+
+// 观察者
+function Watch (node, vm, name) {
+  // console.log(node.nodeValue)
+  Dep.target = this;
+  this.node = node;
+  this.vm = vm;
+  this.name = name;
+  this.value = vm.$data[name];
+  this.update()
+}
+
+Watch.prototype.update = function () {
+    var node = this.node;
+    if (node.nodeType === 3) {
+      var that = this;
+      var v = node.nodeValue;
+      var _name = that.name;
+      if (node.nodeValue.indexOf('{{') < 0) {
+        _name = that.vm.$data[that.name]
+        console.log(that.vm.$data);
+      }
+      // 第一次匹配{{name}} 第二次匹配的是value
+      // 这本身也会有bug，只是这个地方我们实现的是双向绑定模拟（如果value和本身字符串一样的话，这样替换就会有问题）
+      var reg = new RegExp('\{?\{?('+_name+')\}?\}?', 'g');
+      
+      node.nodeValue = v.replace(reg, function (s, $1) {
+          return that.value;
+      })
+    } else {
+      node.value = this.value
+    }
+}
+
+
+//　数据劫持
+function resovle (data) {
+  for (var k in data) {
+      // 在这个地方读取的时候，还没有设置get，所以不会死循环
+      (function (k) {
+        var _value = data[k]
+        var dep = new Dep()
+        Object.defineProperty(data, k, {
+            get: function () {
+                // return data[k] 如果这样写的话，已经定义了get，所以他会自己调用自己，造成死循环
+                // console.log(Dep.target )
+                Dep.target && dep.addDep(Dep.target)
+                return _value
+            },
+            set: function (v) {
+                if (v === _value) {
+                    return
+                }
+                dep.update(v, k);
+                return _value = v
+            }
+        })
+      })(k)
+  }
+}
+
+
+var vm = new Yue({
+  el: '#app',
+  data: {
+      name: 'Yue',
+      name1: '啊啊',
+      s: '11'
+  }
+})
+</script>
+</html>
