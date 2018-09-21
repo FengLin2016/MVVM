@@ -77,34 +77,18 @@ function compile (node, vm) {
 }
 
 
-//订阅
+//发布者
 function Dep () {
-  // 订阅缓存
+  // 发布中心管理
   this.dep = []
 }
 Dep.prototype.addDep = function (target) {
   this.dep.push(target)
   Dep.target = ''
 }
-Dep.prototype.update = function (value, name) {
-  console.log(this.dep)
-  this.dep.forEach(function (item) {
-      // if (item.node.nodeType === 3) {
-      //   var reg = new RegExp('\{?\{?('+vm.$data[name]+')\}?\}?', 'g');
-      //   item.node.nodeValue = item.node.nodeValue.replace(reg, function ($0, $1) {
-      //       return value;
-      //   })
-      // } else {
-      //   item.value = value
-      // }
-      item.value = value;
-      item.update()
-  })
-}
 
-// 观察者
+// 订阅者
 function Watch (node, vm, name) {
-  // console.log(node.nodeValue)
   Dep.target = this;
   this.node = node;
   this.vm = vm;
