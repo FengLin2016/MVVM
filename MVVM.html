@@ -86,6 +86,13 @@ Dep.prototype.addDep = function (target) {
   this.dep.push(target)
   Dep.target = ''
 }
+Dep.prototype.update = function (value) {
+  this.dep.forEach(function (item) {
+    // 调用观察者的实例的update
+    item.value = value;
+    item.update()
+  })
+}
 
 // 订阅者
 function Watch (node, vm, name) {
@@ -138,7 +145,7 @@ function resovle (data) {
                 if (v === _value) {
                     return
                 }
-                dep.update(v, k);
+                dep.update(v);
                 return _value = v
             }
         })
